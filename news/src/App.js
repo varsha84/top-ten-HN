@@ -1,84 +1,73 @@
 import './App.css';
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import HackerNews from './hackerNews';
-import {
-  ContextProvider
-} from './themeContext';
+
+function getRandomInt(max) {
+  return Math.floor(Math.random() * max);
+}
 
 function App() {
-  //const [stories, setStories]= useState([])
+  const [topIds, setTopIds] = useState([])
   const [topStories, setTopStories] = useState([])
-  /*const [authorStories, setAuthorStories] = useState([]) 
-  function getRandomInt(max) {
-    return Math.floor(Math.random() * max);
-  }*/
-  let newTopTenStrories = []
-
-  //const buketContent = {topStories:topStories, authorStories:authorStories}
-
-  React.useEffect(() => {
+  const [topNews, setTopNews] = useState([])
+  
+  
+  useEffect(() => {
     fetch("https://hacker-news.firebaseio.com/v0/topstories.json")
-      .then((response) => response.json())
-      .then((data) => {
-        //console.log(data);
-        //const index = getRandomInt(200)
-        //console.log(index)
-        const topNews = data.slice(0, 10)
-        console.log(topNews)
-        topNews.map(async stroryId => {
-          let newsItem = {}
-          try {
-            const response = await fetch(`https://hacker-news.firebaseio.com/v0/item/${stroryId}.json`);
-            const data = await response.json();
-            //console.log(data);
-            
-            newsItem = {
-              "storyId": data.id,
-              "title": data.title,
-              "url": data.url,
-              "timestamp": data.time,
-              "scope": data.score,
-              "authorId": data.by
-            };
-            newTopTenStrories.push(newsItem);
-          } 
-          catch (e) {
-            console.error(e);
-          }
-          return newsItem
-        });
-        console.log(newTopTenStrories);
-        setTopStories(newTopTenStrories)
-
-      })
-
-    }, []
-  )
-
-/* React.useEffect(()=>{
-console.log(topStories)
-
-setAuthorStories(newTopTenStrories); 
-},[topStories])
-*/
-    /* useEffect(()=>{
-      authorStories.map((story)=>{
-      fetch(`https://hacker-news.firebaseio.com/v0/user/${story.by}.json`)
-      .then((response)=>response.json())
-      .then((data)=>{
-      console.log(data)})
-      
-      .catch((e)=>{
-        console.error(e)
-      })
+    .then((response) => response.json())
+    .then((data) => {
+      const index = getRandomInt(200)
+      const randomIds = data.slice(index, index+10)
+      setTopIds(randomIds)
     })
-    },[authorStories]) */
+  }, [])
+
+  useEffect(() => {
+    Promise.all(
+      topIds.map((stroryId) => {
+        return fetch(`https://hacker-news.firebaseio.com/v0/item/${stroryId}.json`)
+        .then((response) => response.json())
+        .then((data) => {
+          const newsItem = {
+            "id": data.id,
+            "title": data.title,
+            "url": data.url,
+            "time": data.time,
+            "score": data.score,
+            "author": data.by,
+            "authorKarma" : ""  // this data, we will fetch in next fetch request
+            }  
+          return newsItem;
+        })
+      })
+    )
+    .then((data) => {
+      setTopStories(data);
+    })
+  }, [topIds])
+
+
+  useEffect(()=>{
+    Promise.all(
+      topStories.map((item) => {
+        return fetch(`https://hacker-news.firebaseio.com/v0/user/${item.author}.json`)
+        .then((response) => response.json())
+        .then((data) => {
+          item.authorKarma = data.karma
+          return item
+        })
+      })
+    )
+    .then((data) => {
+      setTopNews(data);
+    })
+  }, [topStories])
+
 
   return ( 
     <div>
       <h1> Top 10 hacker news </h1> 
-      <HackerNews topNews={newTopTenStrories}/>
-
+      <HackerNews topNews={topNews}/>
     </div>
   );
 }
